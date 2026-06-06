@@ -639,18 +639,6 @@
     }
     .admin-logout:hover { color: var(--text); border-color: var(--border); }
 
-    /* click counter pip */
-    .logo-click-hint {
-      position: fixed; bottom: 28px; left: 50%;
-      transform: translateX(-50%);
-      background: var(--bg2); border: 1px solid var(--border-hi);
-      border-radius: 20px; padding: 7px 16px;
-      font-size: 11px; color: var(--muted);
-      pointer-events: none; z-index: 200;
-      opacity: 0; transition: opacity 0.3s;
-    }
-    .logo-click-hint.show { opacity: 1; }
-
     @media (max-width: 860px) {
       nav { padding: 16px 24px; }
       #hero, .section-inner { padding-left: 24px; padding-right: 24px; }
@@ -723,35 +711,8 @@
           <p class="commissions-desc" style="margin-top:16px;">Every project I've shipped for clients — combat systems, datastores, game logic, and everything in between.</p>
         </div>
       </div>
-      <div class="admin-panel" id="adminPanel">
-        <p>Logged in as <strong>admin</strong> — tap the button to record a completed commission.</p>
-        <button class="admin-add-btn" id="addCommBtn">＋ Add Commission</button>
-        <button class="admin-logout" id="logoutBtn">Log out</button>
-      </div>
     </div>
   </section>
-
-  <!-- SECRET LOGIN MODAL -->
-  <div class="modal-overlay" id="loginModal">
-    <div class="modal-box">
-      <div class="modal-header">
-        <span class="modal-title">Admin Login</span>
-        <button class="modal-close" id="modalClose">×</button>
-      </div>
-      <div class="modal-field">
-        <label>Username</label>
-        <input type="text" id="loginUser" placeholder="username" autocomplete="off" />
-      </div>
-      <div class="modal-field">
-        <label>Password</label>
-        <input type="password" id="loginPass" placeholder="••••••••" />
-      </div>
-      <p class="modal-error" id="loginError"></p>
-      <button class="modal-btn" id="loginSubmit">Sign In</button>
-    </div>
-  </div>
-
-  <div class="logo-click-hint" id="clickHint"></div>
 
   <div class="section-divider"></div>
 
@@ -977,102 +938,27 @@
     let commissions = parseInt(localStorage.getItem('blxurr_commissions') || '0');
     commCountEl.textContent = commissions;
 
-    function saveCount(val) {
-      commissions = val;
-      localStorage.setItem('blxurr_commissions', val);
-    }
+    // ── SECRET ADMIN TRIGGER — type "blx" anywhere ──
+    const secret = ['b', 'l', 'x'];
+    let entered = [];
 
-    function bumpCount() {
-      const prev = commissions;
-      saveCount(commissions + 1);
-      animateCounter(commCountEl, prev, commissions, '', 400);
-      commCountEl.classList.remove('bump');
-      void commCountEl.offsetWidth; // reflow to re-trigger
-      commCountEl.classList.add('bump');
-      commCountEl.addEventListener('animationend', () => commCountEl.classList.remove('bump'), { once: true });
-    }
-
-    // ── SECRET LOGIN — 10 clicks on logo ──
-    const logo = document.querySelector('.nav-logo');
-    const modal = document.getElementById('loginModal');
-    const modalClose = document.getElementById('modalClose');
-    const loginUser = document.getElementById('loginUser');
-    const loginPass = document.getElementById('loginPass');
-    const loginSubmit = document.getElementById('loginSubmit');
-    const loginError = document.getElementById('loginError');
-    const adminPanel = document.getElementById('adminPanel');
-    const addCommBtn = document.getElementById('addCommBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
-    const clickHint = document.getElementById('clickHint');
-
-    let logoClicks = 0;
-    let hintTimer = null;
-    let loggedIn = false;
-
-    logo.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (loggedIn) return;
-      logoClicks++;
-
-      const remaining = 10 - logoClicks;
-      if (remaining > 0) {
-        clickHint.textContent = remaining === 1 ? 'one more...' : `${remaining} more clicks...`;
-        clickHint.classList.add('show');
-        clearTimeout(hintTimer);
-        hintTimer = setTimeout(() => {
-          clickHint.classList.remove('show');
-          logoClicks = 0;
-        }, 2000);
-      }
-
-      if (logoClicks >= 10) {
-        logoClicks = 0;
-        clickHint.classList.remove('show');
-        openModal();
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      entered.push(e.key.toLowerCase());
+      if (entered.length > secret.length) entered.shift();
+      if (entered.join('') === secret.join('')) {
+        entered = [];
+        loadAdmin();
       }
     });
 
-    function openModal() {
-      loginUser.value = '';
-      loginPass.value = '';
-      loginError.textContent = '';
-      modal.classList.add('open');
-      setTimeout(() => loginUser.focus(), 100);
+    function loadAdmin() {
+      if (document.getElementById('admin-js-loaded')) return;
+      const script = document.createElement('script');
+      script.id = 'admin-js-loaded';
+      script.src = 'admin.js';
+      document.body.appendChild(script);
     }
-
-    function closeModal() {
-      modal.classList.remove('open');
-    }
-
-    modalClose.addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-
-    function attemptLogin() {
-      const u = loginUser.value.trim().toLowerCase();
-      const p = loginPass.value;
-      if (u === 'admin' && p === 'admin') {
-        loggedIn = true;
-        closeModal();
-        adminPanel.classList.add('visible');
-        loginError.textContent = '';
-      } else {
-        loginError.textContent = 'Wrong credentials. Try again.';
-        loginPass.value = '';
-        loginPass.focus();
-      }
-    }
-
-    loginSubmit.addEventListener('click', attemptLogin);
-    loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
-    loginUser.addEventListener('keydown', (e) => { if (e.key === 'Enter') loginPass.focus(); });
-
-    addCommBtn.addEventListener('click', bumpCount);
-
-    logoutBtn.addEventListener('click', () => {
-      loggedIn = false;
-      adminPanel.classList.remove('visible');
-      logoClicks = 0;
-    });
   </script>
 </body>
 </html>
