@@ -1,49 +1,54 @@
-// Admin system - loaded only after secret key sequence
-// Credentials obfuscated (base64) - not real security, just not obvious
+// Admin system — loaded only after secret key sequence "blx"
 const USER = atob('YWRtaW4=');
 const PASS = atob('YWRtaW4=');
 
-// Build modal and panel dynamically so they don't exist in HTML source
 function buildAdminHTML() {
     if (document.getElementById('loginModal')) return;
-    
+
     document.body.insertAdjacentHTML('beforeend', `
         <div class="modal-overlay" id="loginModal">
             <div class="modal-box">
                 <div class="modal-header">
-                    <span class="modal-title">Admin Access</span>
-                    <button class="modal-close" onclick="closeModal()">&times;</button>
+                    <span class="modal-title">Admin Login</span>
+                    <button class="modal-close" id="modalClose">&times;</button>
                 </div>
                 <div class="modal-field">
                     <label>Username</label>
-                    <input type="text" id="adminUser" placeholder="Enter username" autocomplete="off">
+                    <input type="text" id="loginUser" placeholder="username" autocomplete="off">
                 </div>
                 <div class="modal-field">
                     <label>Password</label>
-                    <input type="password" id="adminPass" placeholder="Enter password">
+                    <input type="password" id="loginPass" placeholder="••••••••">
                 </div>
-                <div class="modal-error" id="loginError"></div>
-                <button class="modal-btn" onclick="attemptLogin()">Log In</button>
+                <p class="modal-error" id="loginError"></p>
+                <button class="modal-btn" id="loginSubmit">Sign In</button>
             </div>
         </div>
-        
+    `);
+
+    const commissionsSection = document.querySelector('#commissions .section-inner');
+    commissionsSection.insertAdjacentHTML('beforeend', `
         <div class="admin-panel" id="adminPanel">
-            <p>Commission count: <strong id="adminCount">0</strong></p>
-            <button class="admin-add-btn" onclick="addCommission()">
-                <span>+</span> Add Commission
-            </button>
-            <button class="admin-logout" onclick="logoutAdmin()">Log Out</button>
+            <p>Logged in as <strong>admin</strong> — tap the button to record a completed commission.</p>
+            <button class="admin-add-btn" id="addCommBtn">＋ Add Commission</button>
+            <button class="admin-logout" id="logoutBtn">Log out</button>
         </div>
     `);
-    
-    // Close on overlay click
+
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    document.getElementById('loginSubmit').addEventListener('click', attemptLogin);
+    document.getElementById('addCommBtn').addEventListener('click', bumpCount);
+    document.getElementById('logoutBtn').addEventListener('click', logoutAdmin);
+
     document.getElementById('loginModal').addEventListener('click', (e) => {
         if (e.target.id === 'loginModal') closeModal();
     });
-    
-    // Enter key to submit
-    document.getElementById('adminPass').addEventListener('keypress', (e) => {
+
+    document.getElementById('loginPass').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') attemptLogin();
+    });
+    document.getElementById('loginUser').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') document.getElementById('loginPass').focus();
     });
 }
 
@@ -51,7 +56,7 @@ function openModal() {
     buildAdminHTML();
     const modal = document.getElementById('loginModal');
     modal.classList.add('open');
-    document.getElementById('adminUser').focus();
+    setTimeout(() => document.getElementById('loginUser').focus(), 100);
 }
 
 function closeModal() {
@@ -62,47 +67,53 @@ function closeModal() {
 }
 
 function attemptLogin() {
-    const u = document.getElementById('adminUser').value;
-    const p = document.getElementById('adminPass').value;
+    const u = document.getElementById('loginUser').value.trim().toLowerCase();
+    const p = document.getElementById('loginPass').value;
     const error = document.getElementById('loginError');
-    
+
     if (u === USER && p === PASS) {
         closeModal();
         showAdminPanel();
-        error.textContent = '';
+        if (error) error.textContent = '';
     } else {
-        error.textContent = 'Invalid credentials';
-        document.getElementById('adminPass').value = '';
+        if (error) error.textContent = 'Wrong credentials. Try again.';
+        const passField = document.getElementById('loginPass');
+        if (passField) {
+            passField.value = '';
+            passField.focus();
+        }
     }
 }
 
 function showAdminPanel() {
     const panel = document.getElementById('adminPanel');
-    const count = localStorage.getItem('blxurr_commissions') || '0';
-    document.getElementById('adminCount').textContent = count;
-    panel.classList.add('visible');
+    if (panel) panel.classList.add('visible');
 }
 
-function addCommission() {
+function bumpCount() {
     let count = parseInt(localStorage.getItem('blxurr_commissions') || '0');
+    const prev = count;
     count++;
     localStorage.setItem('blxurr_commissions', count.toString());
-    document.getElementById('adminCount').textContent = count;
-    
-    // Update the main page counter if it exists
-    const display = document.getElementById('commissionCount');
+
+    const display = document.getElementById('commCount');
     if (display) {
         display.textContent = count;
+        display.classList.remove('bump');
+        void display.offsetWidth;
         display.classList.add('bump');
-        setTimeout(() => display.classList.remove('bump'), 350);
+        display.addEventListener('animationend', () => display.classList.remove('bump'), { once: true });
     }
 }
 
 function logoutAdmin() {
-    document.getElementById('adminPanel').classList.remove('visible');
-    document.getElementById('adminUser').value = '';
-    document.getElementById('adminPass').value = '';
+    const panel = document.getElementById('adminPanel');
+    if (panel) panel.classList.remove('visible');
+    const userField = document.getElementById('loginUser');
+    const passField = document.getElementById('loginPass');
+    if (userField) userField.value = '';
+    if (passField) passField.value = '';
 }
 
-// Auto-open modal if this script was just loaded (triggered by key sequence)
+// Auto-open modal when loaded
 openModal();
